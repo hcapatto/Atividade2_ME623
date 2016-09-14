@@ -1,0 +1,144 @@
+---
+title: "Atividade 2 ME623"
+author: 
+- Henrique Capatto RA:146460
+- Murilo Salgado Razoli RA:150987
+output: pdf_document
+---
+# Introdução
+
+###Tratamento para Anorexia
+Foi conduzido um experimento para comparar três terapias no tratamento de anorexia em meninas adolescentes para ajudá-las a ganhar peso. 
+
+As terapias foram:
+
+1. Controle
+2. Cognitiva comportamental  
+3. Família 
+
+São 17 meninas por grupo: variável de interesse é ganho de peso (em libras).
+
+```{r leitura_dos_dados,echo=FALSE}
+
+# leitura dos dados
+tab = read.table(file.choose(), header = TRUE)
+
+A = subset(tab,grupo=="A-controle")
+B = subset(tab,grupo=="B-cognitiva")
+C = subset(tab,grupo=="C-familia")
+#Média
+med_obs = aggregate(tab$ganho~tab$grupo, FUN= mean)
+#Variancia
+var_obs = aggregate(tab$ganho~tab$grupo, FUN= sd)
+total = data.frame(med_obs, var_obs)
+total[3]=total[4]
+total[4]=NULL
+names(total)=c("grupo", "Média", "Variância")
+#Nível de significância
+alpha=0.05
+```
+
+#Estatísticas Básicas
+
+### Análise Exploratória de dados
+
+```{r,echo=FALSE}
+library(printr)
+total
+```
+
+### Boxplot
+```{r boxplot,echo=FALSE,fig.width=6,fig.height=2,fig.align=1}
+library(ggplot2)
+
+g <- ggplot(data=tab,aes(x=factor(grupo),y=ganho,col=factor(grupo)))
+
+g+geom_boxplot()+guides(fill=FALSE)+labs(title="Boxplot de cada fator",x="Fator",y="Ganho de Peso")+theme_minimal()
+```
+
+# ANOVA
+
+Podemos usar a ANOVA para realizar os testes necessarios:
+
+$$\begin{cases}
+ H_{0}:\mu_{1}= \mu_{2}= \mu_{3}
+\\ 
+H_{1}:\mu_{i} \neq \mu_{j} 
+\end{cases}$$
+
+Para algum $i\neq j$.
+
+Fórmulas úteis:
+
+$\bar {y}_{i}{.}=y_{i}{.}/n$;$\bar {y}_{.}{.}=y_{.}{.}/n$
+
+Deste modo as somas de quadrados são dadas por:
+$SQ_{A}$: Soma de quadrado entre tratamentos
+$SQ_{E}$: Soma de quadrado dentro dos tratamentos
+Soma de quadrados total:
+$$SQ_{T}=SQ_{A}+SQ_{E}=n\sum_{i=1}^{a}\sum_{j=1}^{n}(y_{ij}-\overline{y}_{i.})^{2}+\sum_{i=1}^{a}\sum_{j=1}^{n}(\overline{y}_{i.}-\overline{y}_{..})^{2} = 479.3$$
+
+Sabemos também que temos $N-1$ graus de liberdade para $SQ_{T}$.
+
+# Código em R
+
+### ANOVA
+
+```{r anova}
+library(printr)
+#Ajuste modelo linear
+fit <- lm(tab$ganho~tab$grupo, data=tab)
+#tabela ANOVA
+tbl_anova=anova(fit)
+names(tbl_anova)=c("GL","Soma Quadrados","Média Quadrados","Valor F","P-Valor")
+
+```
+
+Pela tabela ANOVA (F=3.85 e p-valor=0.028) temos evidência que os três grupos de terapia diferem significativamente em relação ao ganho de peso, a um nível de significância de $\alpha =$ `r alpha`.
+
+####Diagnostico do Modelo - Analise de residuos
+
+Não se deve confiar nos resultados da Análise de Variância até que as suposições sejam validadas. Isso pode ser feito através da Análise de Resíduos:
+
+O resíduo para a j-ésima observação do nível i é definido por
+
+$$e_{ij}=y_{ij}-\widehat{y}_{ij}$$ 	
+
+em que $\widehat{y}_{ij}$ é uma estimativa da observação $y_{ij}$ assim:
+$e_{11}=y_{11}-\widehat{y}_{11} = -0.5 -(- 0.2411765) = -0.2588235$
+\
+$e_{12}=y_{12}-\widehat{y}_{12} = -9.3 -(-0.2411765)  =  -9.058824$ 
+\
+$\vdots$ 
+Dessa forma podemos observar na figura.X, que aparentemente não há suspeita de violação das nossas hipóteses.
+```{r graf_resid, echo=FALSE,fig.align=1,fig.height=4,fig.env=1}
+
+e_A = A$ganho-med_obs$`tab$ganho`[1]
+e_B = B$ganho-med_obs$`tab$ganho`[2]
+e_C = C$ganho-med_obs$`tab$ganho`[3]
+vet_res <- c(e_A,e_B,e_C)
+res_obs <- data.frame(tab, vet_res)
+
+p1 = plot(res_obs$vet_res, xlab = "Ordem da Coleta", ylab = "Residuos", col = "red", lwd = "2", main="Resíduos vs Ordem de Coleta dos Dados")
+abline(h=0,col=4,lty=4)
+```
+
+```{r,include=FALSE,echo=FALSE,fig.align=1,fig.height=4,fig.env=1 }
+g <- ggplot(data=res_obs,aes(x=factor(grupo),y=vet_res))
+
+g+geom_point()
+```
+
+```{r,echo=FALSE,fig.align=1,fig.height=4,fig.env=1 }
+par(mfrow=c(2,2))
+plot(fit,col="red", pch=15)
+```
+### Análise dos Gráficos
+
+Diante desses gráficos podemos ver que as suposições feitas:
+
+1. Dados que são aparentemente Normais 
+2. Variáveis aleatórias independentes 
+3. Variância constante, ou seja, a variabilidade dos resíduos não deve mudar com os níveis do fator 
+
+Essas suposições são válidas, mostrando que os testes são adequados para o problema em questão.
